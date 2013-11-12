@@ -4,8 +4,8 @@ import string
 from vectors import Vector
 
 ALPHABET = string.uppercase + string.lowercase
-SCREEN_WIDTH = 640
-SCREEN_HEIGHT = 480
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1000
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
@@ -20,23 +20,41 @@ class Bridge(object):
         self.height_multi = float(lines[0])
         self.width = float(lines[1])
 
+        self.load = 2000
+
         self.lowerx = -0.1 * self.width
         self.upperx = 1.1 * self.width
         self.lowery = -0.1 * self.get_height(self.width)
         self.uppery = 1.1 * self.get_height(self.width)
 
+        self.centre = CentreNode(self.width, self)
+
         lines = map(float, ["0"] + lines[2:])
         self.nodes = [Node(x, self) for x in lines]
-        self.nodes[0].below = Vector(0, 0.5)
 
-        for i, node in enumerate(self.nodes):
-            disp = Vector(node) - Vector(old).scale
-            node.up = Vector(
-            node.side = self.down * self.down.sin()
-            old = node
-            after = self.nodes[i + 1]
+        assert self.nodes[-1].x == self.width
 
-        self.centre = CentreNode(self.width, self)
+        # LHS of bridge is taking 1/2 of vert load, 0 horizontal load
+        down = Vector((0, 0.5 * self.load))
+
+        for i, node in enumerate(self.nodes[:-1]):
+            node.down = down
+            node.up = Vector(self.nodes[i + 1]) - Vector(node)
+            node.side = Vector(node) - Vector(self.centre)
+            node.side = node.side.scale(
+                    node.down.size() * (node.down.cos() * node.up.tan() - node.down.sin()) /\
+                    (node.side.cos() * node.up.tan() + node.side.sin())
+            )
+            node.up = node.up.scale(
+                (node.down.size() * node.down.sin() - node.side.size() * node.side.sin()) /\
+                node.up.sin()
+            )
+            down = node.up # below the next node is above us
+
+        self.nodes[-1].down = self.nodes[-1].up = self.nodes[-2].up
+        self.nodes[-1].up[0] *= -1 # invert the x axis on the opposite side
+        self.nodes[-1].side = Vector((0, -2 * self.nodes[-1].down[1]))
+
 
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -79,12 +97,24 @@ class Bridge(object):
         self.screen.fill(WHITE)
         centre = self.centre.draw(self.screen, len(self.nodes))
         old = new = None
+        font = pygame.font.Font(None, 20)
         for i, node in enumerate(self.nodes):
             old = new
             new = node.draw(self.screen, i)
             self.drawmember(new, centre)
+            pos = (Vector(new) + Vector(centre)) / 2
+            self.screen.blit(
+                font.render(str(node.side.size()), 1, BLACK),
+                (int(pos[0]) + 10, int(pos[1]))
+            )
             if old is not None:
                 self.drawmember(old, new)
+            if i != len(self.nodes) - 1:
+                pos = (Vector(new) + Vector(self.get_coords(self.nodes[i + 1]))) / 2
+                self.screen.blit(
+                    font.render(str(node.up.size()), 1, BLACK),
+                    (int(pos[0]) - 40, int(pos[1]) - 10)
+                )
         pygame.display.update()
 
     def save(self):

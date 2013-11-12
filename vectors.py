@@ -1,9 +1,8 @@
-from shapes import *
 from copy import deepcopy
 
 class Vector():
     def __init__(self, dimensions):
-        if isinstance(dimensions, Node):
+        if str(dimensions.__class__.__name__) in ["Node", "CentreNode"]:
             dimensions = (dimensions.x, dimensions.get_height())
         self.point = dimensions
 
@@ -42,6 +41,9 @@ class Vector():
 
     def tan(self):
         return abs(float(self.point[1]) / self.point[0])
+
+    def scale(self, size=1):
+        return self / self.size() * size
 
     def size(self):
         return sum([x**2 for x in self.point]) ** 0.5
@@ -121,7 +123,7 @@ class Vector():
 
         return tuple([min(255, int(x)) for x in out])
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     #from shapes import *
     #from scene import Light
     #circle = Sphere([7, 7], 3, (255, 255, 255))
