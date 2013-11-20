@@ -53,6 +53,7 @@ class Bridge(object):
 
         while not self.close:
             self.update()
+            self.draw()
         self.save()
         self.quit()
 
@@ -87,7 +88,6 @@ class Bridge(object):
         return (highest - diff) / self.height_div
 
     def update(self):
-        self.weight = 0
         for key in self.pressed:
             if self.pressed[key] > 0:
                 self.pressed[key] += 1
@@ -167,22 +167,6 @@ class Bridge(object):
     def drawmember(self, start, end):
         pygame.draw.line(self.screen, BLACK, start, end)
 
-    def getstats(self, force, size, direction):
-        if direction == TENSION:
-            self.weight += 0.68 / 250 * size
-            pressure = force / (math.pi * 1.6e-3 ** 2)
-            break_pt = 3.43 / 250 * size
-            percent = force / break_pt
-            return "%.2f%% (%.2f kg)" % (percent * 100, 1 / percent)
-        else:
-            self.weight += 1.88 / 250 * size
-            pressure = force / (math.pi * (3e-3 ** 2 - 0.75e-3**2))
-            break_pt = 0
-            percent = 0
-            return "%d Pa/mm, %d mm" % (pressure / size, size)
-
-        return "%.2f / %.2fN (%d%%), %dKPa" % (force, break_pt, percent*100, pressure / 1000)
-
     def draw(self):
         self.screen.fill(WHITE)
         centre = self.centre.draw(self.screen, len(self.nodes))
@@ -196,14 +180,10 @@ class Bridge(object):
             dis = (Vector(node) - Vector(self.centre)).size()
             self.screen.blit(
                 font.render(
-                    self.getstats(node.side.size(), dis, TENSION),
+                    getstats(node.side.size(), dis, TENSION),
                     1, BLACK
                 ),
-                (int(pos[0]), int(pos[1]) - (10 * i))
-            )
-            pygame.draw.line(self.screen, BLUE,
-                (int(pos[0]), int(pos[1]) - (10 * i)),
-                (int(pos[0]), int(pos[1]))
+                (int(pos[0]) + 10, int(pos[1]))
             )
             if old is not None:
                 self.drawmember(old, new)
@@ -212,15 +192,11 @@ class Bridge(object):
                 dis = (Vector(node) - Vector(self.nodes[i + 1])).size()
                 self.screen.blit(
                     font.render(
-                        self.getstats(node.up.size(), dis, COMPRESSION),
+                        getstats(node.up.size(), dis, COMPRESSION),
                         1, BLACK
                     ),
                     (int(pos[0]) - 40, int(pos[1]))
                 )
-        self.screen.blit(
-            font.render("%d grams" % (self.weight * 4), 1, BLACK),
-            (0, 0)
-        )
         if time.time() - self.lastframe < 1.0/60:
             time.sleep(abs(self.lastframe + 1.0/60 - time.time()))
         pygame.display.update()
@@ -262,6 +238,20 @@ class Node(object):
 class CentreNode(Node):
     def get_height(self):
         return 0
+
+def getstats(force, size, direction):
+    if direction == TENSION:
+        pressure = force / (math.pi * 1.6e-3 ** 2)
+        break_pt = 3.43 / 250 * size
+        percent = force / break_pt
+        return "%.2f%%" % (percent * 100)
+    else:
+        pressure = force / (math.pi * (3e-3 ** 2 - 0.75e-3**2))
+        break_pt = 0
+        percent = 0
+        return "%d Pa/mm, %d mm" % (pressure / size, size)
+
+    return "%.2f / %.2fN (%d%%), %dKPa" % (force, break_pt, percent*100, pressure / 1000)
 
 assert not sys.argv[1].endswith(".py")
 Bridge(sys.argv[1])
